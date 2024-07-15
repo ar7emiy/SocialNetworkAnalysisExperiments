@@ -9,4 +9,5 @@ You may find the complete list of interactions in the repository. It is divided 
 - Change of upper management
 
 The midterm assessment code covers the social network changes through various visualizations of the network, clustering of network nodes, as well as individual node analysis which allows to "stress-test" the network.
+
 The final assessment code covers the changes seen from change of management. This includes similar visualizations using in the midterm, but also includes Exponential Random Graph Models (ERGMs) analysis of the network.
