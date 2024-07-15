@@ -1,0 +1,872 @@
+---
+title: "Midterm"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05"
+---
+
+
+```{r echo=TRUE, include=FALSE}
+library(igraph)
+library(sna)
+library(xUCINET)
+library(RColorBrewer)
+library(network)
+
+```
+
+
+# Midterm:
+
+note: there will be few comments until the discussion section. the discussion section will include plots and descriptive statistics derived in the analysis section.
+
+# Analysis
+
+## creating calculation of total degree, indegree, outdegree, dyad and edge counts, density, transitivity, and reciprocity of Nexus company before merger:
+
+```{r include=TRUE}
+edge_listW_mod <- read.csv("EdgeListWork_mod.csv")
+
+node_list <- read.csv('HW2_attr.csv')
+
+graphW_mod <- graph_from_data_frame(edge_listW_mod, directed = TRUE, vertices = node_list)
+
+adj_matrix_mod <- as_adjacency_matrix(graphW_mod, type = "both", attr = "weight", sparse = FALSE)
+
+write.csv(as.data.frame(adj_matrix_mod), "AdjMtxW_HW2_mod.csv", row.names = TRUE)
+
+
+WorkShipNetwork_mod <- xCreateProject(
+  GeneralDescription = "Work Relationship Network Modified",
+  NetworkName = "WorkRelationships",
+  NETFILE = "AdjMtxW_HW2_mod.csv",
+  FileType = "csv",
+  InFormatType = "AdjMat",
+  NetworkDescription = "WorkRel network",
+  Mode = c("People"),
+  Directed = TRUE, 
+  Loops = FALSE,
+  Values = "Ordinal",
+  Class = "matrix",
+  References = "No references"
+)
+
+WorkShipNetwork_mod
+
+
+WorkShipNetwork_mod<-xAddAttributesToProject(ProjectName=WorkShipNetwork_mod,
+                                         ATTFILE1="HW2_attr.csv",
+                                         FileType="csv",
+                                         Mode=c("People"),
+                                         AttributesDescription=c("ID","Name","Department","Age","Gender"))
+
+WorkShipNetwork_mod
+
+```
+
+```{r include = TRUE}
+
+#dichotomizing and symmetrizing into new projects
+dichotomizedWNetwork_mod <- xDichotomize(WorkShipNetwork_mod$WorkRelationships,Value=.99)
+dichotomizedWNetwork_mod
+
+#symmetrizedWNetwork <- xSymmetrize(dichotomizedWNetwork) #not sure why but it give me all 0s
+symmetrizedWNetwork_mod <- symmetrize(dichotomizedWNetwork_mod, rule="weak", return.as.edgelist=FALSE)
+symmetrizedWNetwork_mod
+
+
+
+
+
+#workrel modified net 
+WorkNet_mod <- symmetrizedWNetwork_mod %*% symmetrizedWNetwork_mod
+
+WorkNet_mod
+
+WorkNet2_mod <- symmetrizedWNetwork_mod %*% WorkNet_mod
+
+WorkNet2_mod
+```
+
+
+```{r include=TRUE}
+# Calculate degree, indegree, and outdegree
+total_degree <- igraph::degree(graphW_mod, mode = "total")
+indegree <- igraph::degree(graphW_mod, mode = "in")
+outdegree <- igraph::degree(graphW_mod, mode = "out")
+
+print("Total Degree:")
+print(total_degree)
+print("Indegree:")
+print(indegree)
+print("Outdegree:")
+print(outdegree)
+```
+
+```{r include=TRUE}
+# Calculate dyad triad and edge counts on directed network 
+dyad_count <- igraph::dyad.census(graphW_mod)
+triad_count <- igraph::triad.census(graphW_mod)
+
+edge_count <- gsize(graphW_mod)
+
+print("Dyad Count:")
+print(dyad_count)
+print("Triad count:")
+print(triad_count)
+print("Edge Count:")
+print(edge_count)
+```
+
+```{r include=TRUE}
+# Censuses after dichot. and symmetrized network
+dyad_census_after <- sna::dyad.census(symmetrizedWNetwork_mod)
+triad_census_after <- sna::triad.census(symmetrizedWNetwork_mod)
+print("Dyadic Census :")
+print(dyad_census_after)
+print("Triadic Census :")
+print(triad_census_after)
+
+```
+
+
+```{r include=TRUE}
+# Calculate density
+density <- graph.density(graphW_mod)
+
+print("Density:")
+print(density)
+```
+
+```{r include=TRUE}
+# Calculate transitivity (global clustering coefficient)
+transitivity_global <- transitivity(graphW_mod, type = "global")
+
+print("Transitivity (Global Clustering Coefficient):")
+print(transitivity_global)
+```
+
+```{r include=TRUE}
+# Calculate reciprocity
+reciprocity_value <- reciprocity(graphW_mod)
+
+print("Reciprocity:")
+print(reciprocity_value)
+```
+
+
+
+```{r include=TRUE}
+# Plotting various network layouts
+plot(graphW_mod, layout = layout.kamada.kawai, vertex.label = V(graphW_mod)$name, main = "Kamada-Kawai Layout")
+#plot(graphW_mod, layout = layout.eigen, vertex.label = V(graphW_mod)$name, main = "Eigen Layout")
+plot(graphW_mod, layout = layout.random, vertex.label = V(graphW_mod)$name, main = "Random Layout")
+#plot(graphW_mod, layout = layout.spring, vertex.label = V(graphW_mod)$name, main = "Spring Layout")
+plot(graphW_mod, layout = layout.fruchterman.reingold, vertex.label = V(graphW_mod)$name, main = "Fruchterman-Reingold Layout")
+plot(graphW_mod, layout = layout.circle, vertex.label = V(graphW_mod)$name, main = "Circle Layout")
+
+#plot(graphW_mod, layout = layout_with_drl, vertex.label = V(graphW_mod)$name, main = "DrL Layout")
+#plot(graphW_mod, layout = layout_with_lgl, vertex.label = V(graphW_mod)$name, main = "Large Graph Layout")
+
+```
+
+```{r include=TRUE}
+# Perform hierarchical clustering
+ddgm1 <- xHierarchicalClustering(adj_matrix_mod, Input="Differences", Method="ward.D")
+```
+
+```{r include=TRUE}
+# Degree distribution plot
+deg <- igraph::degree(graphW_mod)
+rolecat <- V(graphW_mod)$name
+my_pal <- brewer.pal(7, "Set2")
+
+plot(graphW_mod, vertex.size = deg / 5, vertex.color = my_pal[as.factor(rolecat)], edge.width = 0.5, edge.color = "grey75", main = "Network with Vertex Size Proportional to Degree")
+```
+
+```{r include=TRUE}
+# find cutpoints and visualize
+xnet <- cutpoints(adj_matrix_mod, mode = "graph", return.indicator = TRUE)
+plot(graphW_mod, vertex.color = xnet + 2, vertex.label = V(graphW_mod)$name, main = "Network with Cutpoints")
+```
+
+
+
+
+# Reading the two mode network of NexusOko.AI (New company name) 
+New IDs are NOW included!!!
+
+```{r include=TRUE}
+
+nxs_edge_list <- read.csv("NexusEdgeList.csv")
+
+oko_edge_list <- read.csv("Oko2MdEdgeList.csv")
+
+NexusOko_nodeLst <- read.csv("NexusOko_attr.csv")
+
+#just nexus
+
+graphNexus <- graph_from_data_frame(nxs_edge_list, directed = TRUE, vertices = NexusOko_nodeLst)
+
+NexusAdjMxt <- as_adjacency_matrix(graphNexus, type = "both", attr = "weight", sparse = FALSE)
+
+#write.csv(as.data.frame(NexusAdjMxt), "NexusAdjMxt.csv", row.names = TRUE)
+
+
+
+#loading in (reading in) two mode network of oko+nexus (to be transposed)
+
+graphOko <- graph_from_data_frame(oko_edge_list, directed = FALSE)
+
+# Set the 'type' attribute: TRUE for events, FALSE for individuals
+V(graphOko)$type <- V(graphOko)$name %in% unique(oko_edge_list$Event)
+
+# Create a bipartite adjacency matrix (sorry i foudn this was of doing in documentation i was confused)
+OkoAdjMxt <- as_biadjacency_matrix(graphOko, attr = "weight", sparse = FALSE)
+
+#write.csv(as.data.frame(OkoAdjMxt), "OkoAdjMxt.csv", row.names = TRUE)
+
+
+graphNexus
+NexusAdjMxt
+graphOko
+OkoAdjMxt
+
+```
+
+
+## Transposing the 2-mode network to 1-mode network
+
+```{r include=TRUE}
+#Transpose the two-mode network to create a one-mode network
+
+OkoAdjMxt_transpose <- t(OkoAdjMxt)
+
+Oko_one_mode <- OkoAdjMxt %*% OkoAdjMxt_transpose
+
+diag(Oko_one_mode) <- 0
+
+Oko_one_mode
+
+```
+
+### plotting the post-merger network (without original Nexus.AI network)
+
+```{r include=TRUE}
+
+# Convert the matrix to a graph object
+Oko_one_mode_graph <- graph_from_adjacency_matrix(Oko_one_mode, mode = "directed", weighted = TRUE)
+
+print(Oko_one_mode_graph)
+# Plot the one-mode network
+plot(Oko_one_mode_graph, vertex.label = V(Oko_one_mode_graph)$name, main = "One-Mode Network of Individuals")
+```
+What fascinating network on its own already! so much more interesting than the original nexus network! Lets...
+
+
+
+
+***
+
+
+
+
+
+## Combining the two networks (aka NexusOko.AI network)
+
+```{r include=TRUE}
+NexusAdjMxtSym <- NexusAdjMxt + t(NexusAdjMxt)  # Symmetrize by adding the matrix to its transpose
+OkoAdjMxt <- as_adjacency_matrix(Oko_one_mode_graph, type = "both", attr = "weight", sparse = FALSE)
+
+# Ensure both adjacency matrices have the same dimension and ordering of nodes
+all_nodes <- union(rownames(NexusAdjMxt), rownames(OkoAdjMxt))
+
+# Initialize combined matrices with zeros
+combined_NexusAdjMxt <- matrix(0, nrow = length(all_nodes), ncol = length(all_nodes), dimnames = list(all_nodes, all_nodes))
+combined_OkoAdjMxt <- matrix(0, nrow = length(all_nodes), ncol = length(all_nodes), dimnames = list(all_nodes, all_nodes))
+
+# Fill in the values from the original matrices
+combined_NexusAdjMxt[rownames(NexusAdjMxtSym), colnames(NexusAdjMxtSym)] <- NexusAdjMxtSym
+combined_OkoAdjMxt[rownames(OkoAdjMxt), colnames(OkoAdjMxt)] <- OkoAdjMxt
+
+# Combine the adjacency matrices by adding them
+combinedAdjMxt <- combined_NexusAdjMxt + combined_OkoAdjMxt
+
+# Create a combined graph from the combined adjacency matrix
+combined_graph <- graph_from_adjacency_matrix(combinedAdjMxt, mode = "directed", weighted = TRUE)
+
+```
+
+
+
+```{r include=TRUE}
+print(combinedAdjMxt)
+```
+
+```{r include=TRUE}
+print(combined_graph)
+```
+
+```{r include=TRUE}
+plot(combined_graph, vertex.label = V(combined_graph)$name, main = "Combined Nexus and Oko One-Mode Network")
+
+```
+
+
+
+This is very exciting. dive deeper.
+
+# running descriptive statistics and graphs on the merged, NexusOko.AI, network
+
+```{r include=TRUE}
+NexusOkoGraph <- combined_graph
+NexusOkoAdjMtx <- combinedAdjMxt
+```
+
+```{r include=TRUE}
+total_degree_undir <- igraph::degree(NexusOkoGraph, mode = "total")
+indegree_undir <- igraph::degree(NexusOkoGraph, mode = "in")
+outdegree_undir <- igraph::degree(NexusOkoGraph, mode = "out")
+
+print("Total Degree:")
+print(total_degree_undir)
+print("Indegree:")
+print(indegree_undir)
+print("Outdegree:")
+print(outdegree_undir)
+
+```
+
+```{r include=TRUE}
+dyad_count_undir <- dyad_census(NexusOkoGraph)
+triad_count_undir <- triad_census(NexusOkoGraph)
+edge_count_undir <- gsize(NexusOkoGraph)
+
+print("Dyad Count:")
+print(dyad_count_undir)
+
+print("triad count:")
+print(triad_count_undir)
+
+print("Edge Count:")
+print(edge_count_undir)
+
+```
+
+```{r include=TRUE}
+
+density_undir <- graph.density(NexusOkoGraph)
+
+print("Density:")
+print(density_undir)
+```
+
+
+```{r include=TRUE}
+transitivity_global_undir <- transitivity(NexusOkoGraph, type = "global")
+
+print("Transitivity (Global Clustering Coefficient):")
+print(transitivity_global_undir)
+```
+
+```{r include=TRUE}
+reciprocity_value_undir <- reciprocity(NexusOkoGraph)
+
+print("Reciprocity:")
+print(reciprocity_value_undir)
+```
+
+```{r include=TRUE}
+dyad_census_result_undir <- sna::dyad.census(as.matrix(as_adjacency_matrix(NexusOkoGraph)))
+triad_census_result_undir <- sna::triad.census(as.matrix(as_adjacency_matrix(NexusOkoGraph)))
+
+print("Dyadic Census:")
+print(dyad_census_result_undir)
+print("Triadic Census:")
+print(triad_census_result_undir)
+```
+
+```{r include=TRUE}
+
+# Set colors based on the group (Nexus or Oko)
+vertex_colors <- ifelse(grepl("_nxs$", V(NexusOkoGraph)$name), "skyblue", "orange")
+
+
+plot(NexusOkoGraph, layout = layout_with_kk, vertex.color = vertex_colors, vertex.label = V(NexusOkoGraph)$name, main = "Kamada-Kawai Layout")
+
+```
+
+```{r include=TRUE}
+plot(NexusOkoGraph, layout = layout_with_fr, vertex.color = vertex_colors,vertex.label = V(NexusOkoGraph)$name, main = "Fruchterman-Reingold Layout")
+```
+
+```{r include=TRUE}
+
+plot(NexusOkoGraph, layout = layout.random,vertex.color = vertex_colors, vertex.label = V(graphW_mod)$name, main = "Random Layout")
+#plot(NexusOkoGraph, layout = layout.spring,vertex.color = vertex_colors, vertex.label = V(graphW_mod)$name, main = "Spring Layout")
+plot(NexusOkoGraph, layout = layout.circle,vertex.color = vertex_colors, vertex.label = V(graphW_mod)$name, main = "Circle Layout")
+```
+
+
+
+```{r include=TRUE}
+# Visualize degree distribution
+deg <- igraph::degree(NexusOkoGraph)
+hist(deg, breaks = 20, col = "skyblue", main = "Degree Distribution", xlab = "Degree", ylab = "Frequency")
+
+
+# Plot the network with different vertex sizes based on degree
+plot(NexusOkoGraph, vertex.size = deg/2,vertex.color = vertex_colors, vertex.label = V(NexusOkoGraph)$name, main = "Network with Vertex Size Proportional to Degree")
+```
+
+```{r}
+
+ddgm1 <- xHierarchicalClustering(NexusOkoAdjMtx, Input="Differences", Method="ward.D")
+
+```
+
+just curious...
+```{r include=FALSE}
+# threshold <- 2
+# 
+# # Dichotomize the combined adjacency matrix
+# dichotomizedAdjMtx <- ifelse(NexusOkoAdjMtx >= threshold, 1, 0)
+# 
+# 
+# dichotomized_graph <- graph_from_adjacency_matrix(dichotomizedAdjMtx, mode = "directed", weighted = NULL)
+# 
+# # Remove nodes with a degree of zero
+# dichotomized_graph <- delete.vertices(dichotomized_graph, which(degree(dichotomized_graph) == 0))
+# 
+# 
+# #print(dichotomized_graph)
+# 
+# # Plot the dichotomized network
+# plot(dichotomized_graph, vertex.label = V(dichotomized_graph)$name, main = "Dichotomized Network (No Isolated Nodes)")
+
+```
+
+
+```{r include=FALSE}
+# 
+# threshold <- 3
+# 
+# 
+# dichotomizedAdjMtx <- ifelse(NexusOkoAdjMtx >= threshold, 1, 0)
+# 
+# dichotomized_graph <- graph_from_adjacency_matrix(dichotomizedAdjMtx, mode = "directed", weighted = NULL)
+# 
+# dichotomized_graph <- delete.vertices(dichotomized_graph, which(degree(dichotomized_graph) == 0))
+# 
+# print(dichotomized_graph)
+# 
+# plot(dichotomized_graph, vertex.label = V(dichotomized_graph)$name, main = "Dichotomized Network (No Isolated Nodes)")
+```
+
+***
+
+**Due to the fact that we can't convert a 2 mode network to a directional graph because... by definition, does not inherently have directional edges, but the assignment asks us to have directional data I made a 1 mode directional edge list... 189 edges.**
+
+
+```{r include=TRUE}
+
+oko_edge_list_dir <- read.csv("OkoEdgeList.csv")
+
+graphOko_dir <- graph_from_data_frame(oko_edge_list_dir, directed = TRUE, vertices = NexusOko_nodeLst)
+
+OkoAdjMxt_dir <- as_adjacency_matrix(graphOko_dir, type = "both", attr = "weight", sparse = FALSE)
+#graphOko_dir
+OkoAdjMxt_dir
+```
+
+```{r include = TRUE}
+all_nodes <- union(rownames(NexusAdjMxt), rownames(OkoAdjMxt_dir))
+
+combined_NexusAdjMxt <- matrix(0, nrow = length(all_nodes), ncol = length(all_nodes), dimnames = list(all_nodes, all_nodes))
+combined_OkoAdjMxt_dir <- matrix(0, nrow = length(all_nodes), ncol = length(all_nodes), dimnames = list(all_nodes, all_nodes))
+
+combined_NexusAdjMxt[rownames(NexusAdjMxt), colnames(NexusAdjMxt)] <- NexusAdjMxt
+combined_OkoAdjMxt_dir[rownames(OkoAdjMxt_dir), colnames(OkoAdjMxt_dir)] <- OkoAdjMxt_dir
+
+combinedAdjMxt_dir <- combined_NexusAdjMxt + combined_OkoAdjMxt_dir
+
+combined_graph_dir <- graph_from_adjacency_matrix(combinedAdjMxt_dir, mode = "directed", weighted = TRUE)
+
+print(combinedAdjMxt_dir)
+
+plot(combined_graph_dir, vertex.label = V(combined_graph_dir)$name, main = "Combined Nexus and Oko Directed Network")
+
+
+```
+
+
+```{r include=TRUE}
+total_degree_dir <- igraph::degree(combined_graph_dir, mode = "total")
+indegree_dir <- igraph::degree(combined_graph_dir, mode = "in")
+outdegree_dir <- igraph::degree(combined_graph_dir, mode = "out")
+```
+
+```{r include=TRUE}
+print("Combined Directed Network - Total Degree:")
+print(total_degree_dir)
+print("Combined Directed Network - Indegree:")
+print(indegree_dir)
+print("Combined Directed Network - Outdegree:")
+print(outdegree_dir)
+```
+
+```{r include=TRUE}
+dyad_count_dir <- igraph::dyad.census(combined_graph_dir)
+triad_count_dir <- igraph::triad.census(combined_graph_dir)
+edge_count_dir <- gsize(combined_graph_dir)
+```
+
+```{r include=TRUE}
+print("Combined Directed Network - Dyad Count:")
+print(dyad_count_dir)
+print("Combined Directed Network - Triad Count:")
+print(triad_count_dir)
+print("Combined Directed Network - Edge Count:")
+print(edge_count_dir)
+```
+
+```{r include=TRUE}
+density_dir <- graph.density(combined_graph_dir)
+```
+
+```{r include=TRUE}
+print("Combined Directed Network - Density:")
+print(density_dir)
+```
+
+```{r include=TRUE}
+transitivity_global_dir <- transitivity(combined_graph_dir, type = "global")
+```
+
+```{r include=TRUE}
+
+print("Combined Directed Network - Transitivity (Global Clustering Coefficient):")
+print(transitivity_global_dir)
+```
+
+```{r include=TRUE}
+
+reciprocity_value_dir <- reciprocity(combined_graph_dir)
+```
+
+```{r include=TRUE}
+
+print("Combined Directed Network - Reciprocity:")
+print(reciprocity_value_dir)
+```
+
+```{r include=FALSE}
+# Calculate dyadic and triadic census
+dyad_census_result_dir <- sna::dyad.census(as.matrix(as_adjacency_matrix(combined_graph_dir)))
+triad_census_result_dir <- sna::triad.census(as.matrix(as_adjacency_matrix(combined_graph_dir)))
+```
+
+```{r include=FALSE}
+
+print("Combined Directed Network - Dyadic Census:")
+print(dyad_census_result_dir)
+print("Combined Directed Network - Triadic Census:")
+print(triad_census_result_dir)
+```
+
+```{r include=FALSE}
+
+#plot(combined_graph_dir, layout = layout_with_kk, vertex.label = V(combined_graph_dir)$name, main = "Kamada-Kawai Layout (Combined Directed)")
+#plot(combined_graph_dir, layout = layout_with_fr, vertex.label = V(combined_graph_dir)$name, main = "Fruchterman-Reingold Layout (Combined Directed)")
+#plot(combined_graph_dir, layout = layout_in_circle, vertex.label = V(combined_graph_dir)$name, main = "Circle Layout (Combined Directed)")
+```
+
+
+
+```{r include=TRUE}
+
+plot(combined_graph_dir, layout = layout_with_kk, vertex.label = NA, main = "Kamada-Kawai Layout",
+     vertex.color = V(combined_graph_dir)$color, vertex.size = V(combined_graph_dir)$size)
+
+plot(combined_graph_dir, layout = layout_with_fr, vertex.label = NA, main = "Fruchterman-Reingold Layout",
+     vertex.color = V(combined_graph_dir)$color, vertex.size = V(combined_graph_dir)$size)
+
+plot(combined_graph_dir, layout = layout_in_circle, vertex.label = NA, main = "Circle Layout",
+     vertex.color = V(combined_graph_dir)$color, vertex.size = V(combined_graph_dir)$size)
+
+```
+
+
+```{r include=TRUE}
+# Visualize degree distribution for the combined directed network
+deg_dir <- igraph::degree(combined_graph_dir)
+hist(deg_dir, breaks = 20, col = "skyblue", main = "Degree Distribution (Combined Directed)", xlab = "Degree", ylab = "Frequency")
+```
+
+```{r include=TRUE}
+# Plot the combined directed network with vertex sizes proportional to degree
+plot(combined_graph_dir, vertex.size = deg_dir/2, vertex.label = V(combined_graph_dir)$name, main = "Combined Directed Network with Vertex Size Proportional to Degree")
+```
+
+
+
+
+
+
+```{r include=TRUE}
+
+ddgm1 <- xHierarchicalClustering(combinedAdjMxt_dir, Input="Differences", Method="ward.D")
+
+```
+
+
+
+```{r include=FALSE}
+# #Building an interactive version of the network map!
+# 
+# V(combined_graph_dir)$color <- ifelse(grepl("_nxs$", V(combined_graph_dir)$name), "skyblue", "orange")
+# 
+# # Size nodes by degree
+# V(combined_graph_dir)$size <- igraph::degree(combined_graph_dir) * 2
+# 
+# # Apply community detection (using edge betweenness)
+# community <- cluster_edge_betweenness(combined_graph_dir)
+# V(combined_graph_dir)$community <- membership(community)
+
+
+```
+
+```{r include=FALSE}
+# #library(visNetwork)
+# # Convert to data frames for visNetwork
+# nodes <- data.frame(id = V(combined_graph_dir)$name,
+#                     label = V(combined_graph_dir)$name,
+#                     group = ifelse(grepl("_nxs$", V(combined_graph_dir)$name), "Nexus", "Oko"),
+#                     value = igraph::degree(combined_graph_dir),
+#                     title = paste("<p><b>", V(combined_graph_dir)$name, "</b><br>Degree: ", igraph::degree(combined_graph_dir), "</p>"),
+#                     stringsAsFactors = FALSE)
+# 
+# # Extract edge list and create the edges data frame
+# edges <- as.data.frame(get.edgelist(combined_graph_dir))
+# colnames(edges) <- c("from", "to")
+# edges$value <- E(combined_graph_dir)$weight
+# 
+# # Interactive visualization with visNetwork
+# networkHTMLplot<- visNetwork(nodes, edges) %>%
+#   visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+#   visGroups(groupname = "Nexus", color = "skyblue") %>%
+#   visGroups(groupname = "Oko", color = "orange") %>%
+#   visLayout(randomSeed = 407) %>%
+#   visEdges(arrows = 'to')
+# 
+# networkHTMLplot
+
+
+#Maybe the coolest visualization I have ever created. Mesmorizing.
+```
+
+```{r include=FALSE}
+#library(htmlwidgets)
+#saveWidget(networkHTMLplot, file = "network_visualization.html")
+```
+
+```{r include=TRUE}
+
+# Convert the combined adjacency matrix to a network object for sna
+network <- as.network(combinedAdjMxt_dir, directed = TRUE)
+
+# Set colors based on the group (Nexus or Oko)
+vertex_colors <- ifelse(grepl("_nxs$", V(combined_graph_dir)$name), "skyblue", "orange")
+
+# Set vertex sizes based on degree
+vertex_sizes <- igraph::degree(combined_graph_dir) * 2
+
+# Define a color palette for the edges
+edge_colors <- rep("gray", ecount(combined_graph_dir))
+
+
+```
+
+
+```{r include=TRUE}
+
+# Kamada-Kawai Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 5,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      main = "Kamada-Kawai Layout")
+
+```
+
+```{r include=TRUE}
+# Fruchterman-Reingold Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 8,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      mode = "fruchtermanreingold",
+      main = "Fruchterman-Reingold Layout")
+
+
+```
+```{r include=TRUE}
+# Circle Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 8,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      mode = "circle",
+      main = "Circle Layout")
+
+
+
+```
+```{r include=TRUE}
+# Random Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 8,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      mode = "random",
+      main = "Random Layout")
+```
+
+
+```{r include=TRUE}
+# Spring Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 8,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      mode = "spring",
+      main = "Spring Layout")
+
+```
+
+```{r include=TRUE}
+# Eigen Layout
+gplot(network, displaylabels = TRUE, label.cex = 0.7,
+      vertex.col = vertex_colors, vertex.cex = vertex_sizes / 8,
+      edge.col = edge_colors, edge.lwd = 0.5,
+      mode = "eigen",
+      main = "Eigen Layout")
+
+
+```
+
+
+***
+
+
+# Discussion
+
+##lets first briefly analyze the symmetrized network of both pre-acquisition and post-acquisition company state:
+
+**before merger**
+```{r echo=FALSE}
+print("Dyadic Census :")
+print(dyad_census_after)
+print("Triadic Census :")
+print(triad_census_after)
+```
+**after merger**
+
+```{r echo=FALSE}
+# Print dyadic and triadic census
+print("Dyadic Census:")
+print(dyad_census_result_undir)
+print("Triadic Census:")
+print(triad_census_result_undir)
+```
+
+Mutual dyads increased significantly from 46 to 132 after the merger.
+Triads with three edges (300) increased from 21 to 186 after the merger which tells us that there are more close-knit groups where each member is connected to the other two. This is likely driven by the 6 executives of the company working extremely close together as most of the scenarios include at least 2 executived from either of the company.
+Null dyads also increased a lot, but that is likely because of the significant amount of communication overall as seen by the x6 increase in edge count.
+the 201 tried where a node has bidirectional communication with two other nodes increased from 130-575 so is evident that there are certain individuals which are now in a more managerial like role. A great example is Wynona L (Ex1_oko) who interacts bidirectionaly with some of her team and the Nexus execs but the Nexus execs do not interacts birectionally with Oko employees.
+As expected from the merger and most evident from significant interaction amount between the execs of two companies and increase in employees that don't interact with them or nexus employees, the 102 triad type increased drastically as well.
+
+##Now lets focus on directed network analysis
+
+
+**before merger**
+```{r echo=FALSE}
+# Print degree, indegree, and outdegree
+print("Total Degree:")
+print(total_degree)
+print("Indegree:")
+print(indegree)
+print("Outdegree:")
+print(outdegree)
+
+
+# Calculate dyad triad and edge counts on directed network 
+dyad_count <- igraph::dyad.census(graphW_mod)
+triad_count <- igraph::triad.census(graphW_mod)
+
+edge_count <- gsize(graphW_mod)
+
+# Print dyad and edge counts
+print("Dyad Count:")
+print(dyad_count)
+print("Triad count:")
+print(triad_count)
+print("Edge Count:")
+print(edge_count)
+
+
+# Calculate density
+density <- graph.density(graphW_mod)
+
+# Print density
+print("Density:")
+print(density)
+
+# Calculate reciprocity
+reciprocity_value <- reciprocity(graphW_mod)
+
+# Print reciprocity
+print("Reciprocity:")
+print(reciprocity_value)
+
+```
+
+
+
+**after merger**
+```{r echo=FALSE}
+# Print degree, indegree, and outdegree
+print("Combined Directed Network - Total Degree:")
+print(total_degree_dir)
+print("Combined Directed Network - Indegree:")
+print(indegree_dir)
+print("Combined Directed Network - Outdegree:")
+print(outdegree_dir)
+
+print("Combined Directed Network - Dyad Count:")
+print(dyad_count_dir)
+print("Combined Directed Network - Triad Count:")
+print(triad_count_dir)
+print("Combined Directed Network - Edge Count:")
+print(edge_count_dir)
+
+print("Combined Directed Network - Density:")
+print(density_dir)
+
+print("Combined Directed Network - Transitivity (Global Clustering Coefficient):")
+print(transitivity_global_dir)
+
+print("Combined Directed Network - Reciprocity:")
+print(reciprocity_value_dir)
+```
+
+
+We can clearly see that the density (and edge count) has increased signficantly after the merger which means that interactions increased in frequency and the network is denser. from the plots we saw earlier it is easily observable how much denser it is especially when you use the interactive tool and select any one of the executives from NexusOko. The very first scenario where Art Y, Briley H, Chris T, Wyndham R from Nexus, and Dave G, Wynona L, and Hiroshi T of Oko.AI met essentially made them the centers of the network since every interaction after included at least one of them making the network very dense. 
+
+Transitivity also increased which tells us that the network is more clustered. so if two nodes are connected to a third one those two nodes are probably also connected. Thats kind of what i was hoping to happen with these scenarios, showcasing what a good startup acquision should be, instead of being divisive it should be tight knit within and among groups. a simple example of increase in transitivity is when Briley H (E3_nxs) and Casey S (S4_nxs) meet with Wynona L (Ex1_oko) and Mark P (M1_oko) where the Nexus and Oko marketing teams connect Or when Wynona L (Ex1_oko) meets with Raghav C (D1_oko), Sarah H (D2_oko), Robin K (R5_nxs), and Lex L (R3_oko) to recruit them making them a separate cluster group. The goal of all these scenarios is to facilitate efficient flow of information within groups and so increased transitivity was expected.
+
+Reciprocity increase by .39 which is quiet a bit. this means that a lot more interactions are now bidirectional. This is in part because Management is essentially communicating bidirectionally. Also because members of Oko teams had bidirectional relationships between themselved and when they interacted with management.An example of the latter would when, in scenario 10,
+Robin K (R5_nxs), Kim K (R3_nxs), Chris T (E1_nxs) of Nexus, and Hiroshi T (Ex3_oko), Adam S (R1_oko), and Sarah H (D2_oko) met and everyone interacted with each other making a highly reciprocal network where Chris T ad Kim K also have a high overall degree as well as reciprocity with management. If reciprocity is high after an acquision, I would presume the management is doing something very correctly to maximize the synergy.
+
+If we look at the dyad census its interesting to see that before merger there were a significant about of asymmetrical dyads when compared to mutual ones, but after the merger mutual dyads number increased a lot more than assymetrical ones. This shows that the post merger interactions were focused within a cluster of member. This is confirmed since interactions were primarily focused on executives and group leaders and the regular employees from nexus didn't interact much with Oko's regular employees nor did many nexus' employeed interact much with any of the executives. In the triadic census we see similar things noted in the undirected network analysis. 102 and 201 increase shows emergence of key individuals, 300 shows increased of stronger clustering. But there is also an increase in empty triads which is explained by regular oko and nexus employees lacking interaction.
+
+Lets lastly analyze the individuals with most changes and the oko company members with highest social impact:
+Chris T(E1 / E1_nxs) had an increase of: Total Degree: +19, Indegree: +8, Outdegree: +11. Art Y (E2, E2_nxs) connectivity changed in a slightly different but still significant way: Total Degree: +18 Indegree: +13 Outdegree: +5
+From this we can see that Art Y had a lot more people connect with him rather than his reach out wherea Chris T had the highest outdegree among anyone post merger. This outdegree for Chris T is explainable by the fact that hes present in scenarios 1, 2 and 10 where all of them were of him establishing his governance. 
+What's interesting is that Art Y and Wynona L (ex-Ceo of OKO / Ex1_oko) have very comparable degree statistics. Wynona's degree numbers are Total Degree- 24, Indegree- 11, and Outdegree- 13 compared to Art's  25 , 13 , 12. Through out the scenarios Wynona was very engaged everywhere and and is also leading the innovations team so her significance post-merger is explainable. 
